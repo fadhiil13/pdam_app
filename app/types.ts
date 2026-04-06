@@ -25,8 +25,9 @@ export interface User {
   createdAt: string
   updatedAt: string
 }
+
 export interface Customer {
-  user: any
+  user: User
   id: number
   user_id: number
   customer_number: string
@@ -39,12 +40,14 @@ export interface Customer {
   updatedAt: string
 }
 
+// PENAMBAHAN: Field status untuk Services
 export interface Services {
   id: number
   name: string
   min_usage: number
   max_usage: number
   price: number
+  status: "active" | "inactive"   // Field baru — tambahkan di database juga
   owner_token: string
   createdAt: string
   updatedAt: string

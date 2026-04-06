@@ -1,10 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -13,20 +22,19 @@ export default function EditCustomer({ selectedData }: { selectedData: any }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Selalu gunakan fallback "" agar tidak pernah undefined (mencegah uncontrolled→controlled warning)
   const [formData, setFormData] = useState({
     name: selectedData?.name ?? "",
     address: selectedData?.address ?? "",
     phone: selectedData?.phone ?? "",
   });
 
-  // ✅ Reset form ke data terbaru setiap kali dialog dibuka
+  // Reset form ke data terbaru setiap kali dialog dibuka
   const handleOpenChange = (val: boolean) => {
-    if (val) {
+    if (val && selectedData) {
       setFormData({
-        name: selectedData?.name ?? "",
-        address: selectedData?.address ?? "",
-        phone: selectedData?.phone ?? "",
+        name: selectedData.name ?? "",
+        address: selectedData.address ?? "",
+        phone: selectedData.phone ?? "",
       });
     }
     setOpen(val);
@@ -37,42 +45,44 @@ export default function EditCustomer({ selectedData }: { selectedData: any }) {
     setLoading(true);
 
     try {
-      const getCookieValue = (name: string) => {
-        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-        return match ? decodeURIComponent(match[2]) : null;
-      };
+      const token = getCookie("accessToken");
 
-      const token = getCookieValue("accessToken");
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/customers/${selectedData.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "APP-KEY": process.env.NEXT_PUBLIC_APP_KEY || "",  // ✅ huruf kapital
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          address: formData.address,
-          phone: formData.phone,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_API_URL}/customers/${selectedData.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            // Samakan dengan file lain di CustomerData yang pakai "app-key"
+            "app-key": process.env.NEXT_PUBLIC_APP_KEY || "",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            address: formData.address,
+            phone: formData.phone,
+          }),
+        }
+      );
 
       const result = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        toast.success("Perubahan Disimpan!");
+        toast.success("Data pelanggan berhasil diperbarui!");
         setOpen(false);
         router.refresh();
       } else {
-        const errorMsg =
-          typeof result?.message === "string" ? result.message
-          : Array.isArray(result?.message) ? result.message.join(", ")
-          : JSON.stringify(result);
-        toast.error(`Gagal: ${errorMsg}`);
+        const msg =
+          typeof result?.message === "string"
+            ? result.message
+            : Array.isArray(result?.message)
+            ? result.message.join(", ")
+            : `Error ${response.status}`;
+        toast.error(`Gagal: ${msg}`);
       }
     } catch (err: any) {
       toast.error(`Error: ${err?.message || "Unknown error"}`);
+      console.error("EditCustomer error:", err);
     } finally {
       setLoading(false);
     }
@@ -85,10 +95,13 @@ export default function EditCustomer({ selectedData }: { selectedData: any }) {
           Edit
         </Button>
       </DialogTrigger>
+
       <DialogContent className="sm:max-w-md rounded-3xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-center">EDIT PELANGGAN</DialogTitle>
+            <DialogTitle className="text-xl font-bold text-center">
+              EDIT PELANGGAN
+            </DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-3 py-2 text-sm">
@@ -124,7 +137,9 @@ export default function EditCustomer({ selectedData }: { selectedData: any }) {
 
           <DialogFooter className="flex gap-2">
             <DialogClose asChild>
-              <Button type="button" variant="ghost" className="rounded-xl flex-1">Batal</Button>
+              <Button type="button" variant="ghost" className="rounded-xl flex-1" disabled={loading}>
+                Batal
+              </Button>
             </DialogClose>
             <Button
               type="submit"
